@@ -1,0 +1,57 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+cavityDiameter = 160e-3
+import numpy as np
+
+frequency = 148.009205e6
+omega = 2 * np.pi * frequency
+ql = 659.132
+powerDissipated = 1e-3 * (1 - 0.37 - 2.2e-3)
+qu = ql / (1 - 0.37)
+energyStored = (qu) * powerDissipated / omega
+epsilonR = 2.1
+print(powerDissipated)
+r = 3e-3
+
+df = pd.read_csv('Metal6mm.csv', sep=';', header=None)
+
+# Assuming each row has exactly two numbers separated by ';'
+# Extract the numbers into two separate lists
+frequency = df[0].tolist()
+s21Angle = df[1].tolist()
+zAxis = np.linspace(-cavityDiameter / 2, cavityDiameter / 2, len(s21Angle))
+s21AngleArray = np.array(s21Angle)
+# s21Angle_ = s21AngleArray - np.sum(s21AngleArray[:16]) / 16
+s21AngleNorm = s21AngleArray - s21AngleArray[0]
+#plt.plot(zAxis, s21AngleNorm)
+
+
+
+delFbyF = np.tan(s21AngleNorm * np.pi / 180) / (2 * ql)
+# Print the lists to verify
+#plt.plot(zAxis, delFbyF)
+eFieldSqr = -delFbyF * energyStored / (np.pi * r ** 3 * 8.85e-12)
+eField = np.sqrt(np.abs(eFieldSqr))
+# plt.plot(zAxis, eField)
+
+
+eFieldGap1, peak1 = np.max(eField[:250]), np.argmax(eField[:250])
+eFieldGap2 = np.max(eField[250:])
+ff = (eFieldGap1 - eFieldGap2) / (eFieldGap1 + eFieldGap2)
+print(ff * 100)
+vDC = np.trapz(eField, zAxis)
+#print("DC acc " + str(vDC))
+eField[250:] *= -1
+beta = np.linspace(0.03, 0.3, 1000)
+vRF = np.array([])
+for i in beta:
+    vRF = np.append(vRF, np.trapz(eField * np.cos((omega * zAxis) / (i * 3e8) + np.pi/2), zAxis))
+ttf = vRF/ vDC
+plt.plot(beta, ttf)
+max_value = np.max(ttf)
+max_index = np.argmax(ttf)
+print("Max TTF is " + str(max_value) + " at beta of " + str(beta[max_index]))
+
+# plt.ylabel("del f/f ")
+# plt.xlabel("Longitudinal distance (m)")
+plt.show()
